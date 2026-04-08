@@ -2,83 +2,113 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+// Soma dois polinômios
 uint32_t *add(uint32_t m, uint32_t k, const uint32_t *coef1, const uint32_t *coef2){
 
-    uint32_t n = (m > k) ? m : k;
+    uint32_t n;
+    if (m > k)
+        n = m;
+    else 
+        n = k;
+
     uint32_t *resultado = (uint32_t *) calloc(n, sizeof(uint32_t));
 
-    uint32_t i;
+    uint32_t a, b, i;
     for (i = 0; i < n; i++) {
-        uint32_t a = (i < m) ? coef1[i] : 0;
-        uint32_t b = (i < k) ? coef2[i] : 0;
+        a = coef1[i];
+        b = coef2[i];
+
+        if (i >= m) a = 0;
+        if (i >= k) b = 0;
+    
         resultado[i] = a + b;
     }
 
     return resultado;
 }
 
+// Subtrai dois polinômios
 uint32_t *sub(uint32_t m, uint32_t k, const uint32_t *coef1, const uint32_t *coef2){
 
-    uint32_t n = (m > k) ? m : k;
+    uint32_t n;
+    if (m > k)
+        n = m;
+    else 
+        n = k;
+
     uint32_t *resultado = (uint32_t *) calloc(n, sizeof(uint32_t));
 
-    uint32_t i;
+    uint32_t a, b, i;
     for (i = 0; i < n; i++) {
-        uint32_t a = (i < m) ? coef1[i] : 0;
-        uint32_t b = (i < k) ? coef2[i] : 0;
+        a = coef1[i];
+        b = coef2[i];
+
+        if (i >= m) a = 0;
+        if (i >= k) b = 0;
+
         resultado[i] = a - b;
     }
 
     return resultado;
 }
 
+// Multiplicação ingênua (O(n^2)) para caso base (n <= 16)
+uint32_t *multiplica_ingenuo(uint32_t grau, const uint32_t *coef1, const uint32_t *coef2){
+    uint32_t *resultado = (uint32_t *) calloc(2 * grau + 1, sizeof(uint32_t));
+
+    uint32_t i, j, k;
+    for (i = 0; i <= grau; i++){
+        for (j = 0; j <= grau; j++){
+            k = i + j;
+            resultado[k] += coef1[i] * coef2[j];
+        }
+    }
+    return resultado;   
+}
+
+
 // Baseado na Aula 09 do dia 24 de março de 2026 slide 10 "Algoritmo de Karatsuba" do Prof. Dr. Hilder Vitor Lima Pereira de MC458
 uint32_t *multiplica_polinomio(uint32_t grau, const uint32_t *coef1, const uint32_t *coef2)
 {
     uint32_t n = grau + 1;
-    uint32_t *resultado = (uint32_t *) calloc(2 * grau + 1, sizeof(uint32_t));
 
     // Caso base (n <= 16): Multiplicação ingênua (O(n^2))
-    if (n <= 16){
-        uint32_t i, j, k;
-        for (i = 0; i <= grau; i++){
-            for (j = 0; j <= grau; j++){
-                k = i + j;
-                resultado[k] += coef1[i] * coef2[j];
-            }
-        }
-        return resultado;
-    }
+    if (n <= 16)
+        return multiplica_ingenuo(grau, coef1, coef2);
 
-    uint32_t m = n/2;
-    uint32_t k = n - m;
+    uint32_t m = n/2;       // tamanho da parte menor (se n for ímpar)
+    uint32_t k = n - m;     // tamanho da parte maior (se n for ímpar)
+                            // se n for par, m = k
 
+    // separa u e v em partes esquerda e direita
     uint32_t *uE = coef1;
     uint32_t *uD = coef1 + m;
     uint32_t *vE = coef2;
     uint32_t *vD = coef2 + m;
 
-    uint32_t *y0 = add(m, k, uE, uD);
-    uint32_t *y1 = add(m, k, vE, vD);
+    uint32_t *y0 = add(m, k, uE, uD);  // y0 = uE + uD
+    uint32_t *y1 = add(m, k, vE, vD);  // y1 = vE + vD
 
-    uint32_t *y  = multiplica_polinomio(k - 1, y0, y1);
-    uint32_t *x0 = multiplica_polinomio(m, uE, vE);
-    uint32_t *x2 = multiplica_polinomio(k, uD, vD);
-
+    uint32_t *y  = multiplica_polinomio(k - 1, y0, y1);  // y  = Karatsuba(y0, y1)
+    uint32_t *x0 = multiplica_polinomio(m, uE, vE);      // x0 = Karatsuba(uE, vE)
+    uint32_t *x2 = multiplica_polinomio(k, uD, vD);      // x2 = Karatsuba(uD, vD)
+ 
+    // x1 = y - x0 - x2
     uint32_t *temp = sub(2*k - 1, 2*m - 1, y, x0);
     uint32_t *x1 = sub(2*k - 1, 2*k - 1, temp, x2);
 
     uint32_t i;
+    uint32_t *resultado = (uint32_t *) calloc(2 * grau + 1, sizeof(uint32_t));
 
-    // x0
+    // resultado += x0
     for (i = 0; i < 2*m - 1; i++)
         resultado[i] += x0[i];
 
-    // x1 (shift m)
+    // resultado += shift(x1, m)
     for (i = 0; i < 2*k - 1; i++)
         resultado[i + m] += x1[i];
 
-    // x2 (shift 2m)
+    // resultado += shift(x2, 2*m)
     for (i = 0; i < 2*k - 1; i++)
         resultado[i + 2*m] += x2[i];
 
