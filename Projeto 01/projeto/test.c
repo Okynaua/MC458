@@ -67,5 +67,7 @@ int main(){
 
     //free(resultado);
 
+    printf("\n\n\n%d\n", 1231/2 * 2);
+
     return 0;
 }
